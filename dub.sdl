@@ -1,0 +1,16 @@
+name "vibe-stream"
+description "Advanced stream implementations for vibe-core"
+authors "Sönke Ludwig"
+copyright "Copyright © 2016-2024, Sönke Ludwig"
+license "MIT"
+
+subPackage "tls"
+
+dependency "vibe-core" version=">=2.8.1 <3.0.0-0"
+dependency "vibe-container" version=">=1.2.2 <3.0.0-0"
+
+targetType "library"
+
+// LDC 1.0.0 doesn't include libz in libphobos
+libs "z" platform="posix-ldc"
+libs "z" platform="gdc"
