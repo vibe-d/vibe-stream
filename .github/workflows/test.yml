@@ -40,6 +40,4 @@ jobs:
                 DC: ${{matrix.dc}}
                 ARCH: ${{matrix.arch}}
               shell: bash
-              run:
-                - dub test
-                - dub test :tls
+              run: dub test && dub test :tls
