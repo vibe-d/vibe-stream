@@ -23,6 +23,7 @@ dub test $DUB_FLAGS
 
 if [ "$OS" == "macOS-latest" ]; then
     dub test :tls -c openssl-1.1 $DUB_FLAGS
+    DUB_FLAGS="$DUB_FLAGS --override-config vibe-stream:tls/openssl-1.1"
 else
     dub test :tls $DUB_FLAGS
 fi
@@ -30,6 +31,6 @@ fi
 if [ ${RUN_TEST=1} -eq 1 ]; then
     for ex in `cd tests && ls -1 *.d`; do
         echo "[INFO] Running test $ex"
-        (cd tests && dub --temp-build --compiler=$DC --single $ex)
+        (cd tests && dub --temp-build --single $ex $DUB_FLAGS)
     done
 fi
