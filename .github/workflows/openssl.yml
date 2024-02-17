@@ -30,7 +30,7 @@ jobs:
     steps:
     - name: 'Looking up cache'
       id: cache-openssl
-      uses: actions/cache@v1
+      uses: actions/cache@v4
       with:
         path: ${{ github.workspace }}/openssl/
         key: ${{ runner.os }}-${{ runner.arch }}-${{ matrix.openssl.version }}
@@ -73,7 +73,7 @@ jobs:
     timeout-minutes: 60
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
 
     - name: Prepare compiler
       uses: dlang-community/setup-dlang@v1
@@ -82,7 +82,7 @@ jobs:
 
     - name: 'Restore openssl from cache'
       id: lookup-openssl
-      uses: actions/cache@v1
+      uses: actions/cache@v4
       with:
         path: ${{ github.workspace }}/openssl/
         key: ${{ runner.os }}-${{ runner.arch }}-${{ matrix.openssl.version }}
