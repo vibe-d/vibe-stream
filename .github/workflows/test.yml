@@ -26,18 +26,19 @@ jobs:
                   - { os: windows-latest, dc: dmd-2.091.1, arch: x86_64 }
                   - { os: windows-latest, dc: ldc-1.20.1, arch: x86_64 }
 
-        runs-on: ${{ matrix.os }}
+        runs-on: ${{matrix.os}}
         steps:
             - uses: actions/checkout@v3
 
             - name: Install D compiler
               uses: dlang-community/setup-dlang@v1
               with:
-                  compiler: ${{ matrix.dc }}
+                  compiler: ${{matrix.dc}}
 
             - name: Run tests
               env:
                 DC: ${{matrix.dc}}
                 ARCH: ${{matrix.arch}}
+                OS: ${{matrix.os}}
               shell: bash
-              run: dub test && dub test :tls
+              run: ./run-ci.sh
