@@ -1,3 +1,8 @@
+/+ dub.sdl:
+	name "tests"
+	description "TLS tunnel and certificate test"
+	dependency "vibe-stream:tls" path=".."
++/
 module app;
 
 import vibe.core.core;
