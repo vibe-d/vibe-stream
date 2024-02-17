@@ -1,0 +1,7 @@
+{
+    "name": "tests",
+    "description": "TLS tunnel and certificate test",
+    "dependencies": {
+        "vibe-d:tls": {"path": "../../"}
+    }
+}

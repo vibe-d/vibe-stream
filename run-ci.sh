@@ -26,3 +26,16 @@ if [ "$OS" == "macOS-latest" ]; then
 else
     dub test :tls $DUB_FLAGS
 fi
+
+if [ ${RUN_TEST=1} -eq 1 ]; then
+    for ex in `\ls -1 tests/*.d`; do
+        script="${ex%.d}.sh"
+        if [ -e "$script" ]; then
+            echo "[INFO] Running test scipt $script"
+            (cd tests && "./${script:6}")
+        else
+            echo "[INFO] Running test $ex"
+            dub --temp-build --compiler=$DC --single $ex
+        fi
+    done
+fi
