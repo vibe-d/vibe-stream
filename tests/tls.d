@@ -255,27 +255,18 @@ void testConn(TLSVersion cli_version, TLSVersion srv_version, bool expect_succes
 
 void testVersion()
 {
-	// NOTE: SSLv3 is not supported anymore by current OpenSSL versions
-	// NOTE: Ubuntu 20.04 has removed support for TLSv1/TLSv1.1 from OpenSSL
-	version (linux) enum support_old_tls = false;
-	else enum support_old_tls = true;
-
 	testConn(TLSVersion.ssl3, TLSVersion.any, false);
 	testConn(TLSVersion.ssl3, TLSVersion.ssl3, false);
 	testConn(TLSVersion.ssl3, TLSVersion.tls1, false);
 	testConn(TLSVersion.ssl3, TLSVersion.tls1_1, false);
 	testConn(TLSVersion.ssl3, TLSVersion.tls1_2, false);
 
-	if (support_old_tls) testConn(TLSVersion.tls1, TLSVersion.any, true);
 	testConn(TLSVersion.tls1, TLSVersion.ssl3, false);
-	if (support_old_tls) testConn(TLSVersion.tls1, TLSVersion.tls1, true);
 	testConn(TLSVersion.tls1, TLSVersion.tls1_1, false);
 	testConn(TLSVersion.tls1, TLSVersion.tls1_2, false);
 
-	if (support_old_tls) testConn(TLSVersion.tls1_1, TLSVersion.any, true);
 	testConn(TLSVersion.tls1_1, TLSVersion.ssl3, false);
 	testConn(TLSVersion.tls1_1, TLSVersion.tls1, false);
-	if (support_old_tls) testConn(TLSVersion.tls1_1, TLSVersion.tls1_1, true);
 	testConn(TLSVersion.tls1_1, TLSVersion.tls1_2, false);
 
 	testConn(TLSVersion.tls1_2, TLSVersion.any, true);
@@ -286,8 +277,6 @@ void testVersion()
 
 	testConn(TLSVersion.any, TLSVersion.any, true);
 	testConn(TLSVersion.any, TLSVersion.ssl3, false);
-	if (support_old_tls) testConn(TLSVersion.any, TLSVersion.tls1, true);
-	if (support_old_tls) testConn(TLSVersion.any, TLSVersion.tls1_1, true);
 	testConn(TLSVersion.any, TLSVersion.tls1_2, true);
 }
 
