@@ -614,7 +614,7 @@ final class OpenSSLStream : TLSStream {
 				SSL_get0_alpn_selected(m_tls, &data, &datalen);
 				ret = cast(string)data[0 .. datalen].idup;
 			} ();
-			logDebug("alpn selected: ", ret);
+			logDebug("alpn selected: %s", ret);
 			return  ret;
 		}
 	}
