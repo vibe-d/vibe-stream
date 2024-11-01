@@ -57,6 +57,7 @@ struct CachedFileStream(InputStream)
 	enum outputStreamVersion = 2;
 
 	private static struct CTX {
+		int refCount;
 		InputStream source;
 		FileStream cachedFile;
 		ulong readPtr;
@@ -72,6 +73,7 @@ struct CachedFileStream(InputStream)
 	private this(InputStream source, bool writable, NativePath cached_file_path)
 	{
 		m_ctx = new CTX;
+		m_ctx.refCount = 1;
 		m_ctx.source = source;
 		m_ctx.canWrite = writable;
 		m_ctx.size = source.leastSize;
@@ -80,6 +82,19 @@ struct CachedFileStream(InputStream)
 			m_ctx.deleteOnClose = true;
 			m_ctx.cachedFile = createTempFile();
 		} else m_ctx.cachedFile = openFile(cached_file_path, FileMode.createTrunc);
+	}
+
+	this(this)
+	{
+		if (m_ctx) m_ctx.refCount++;
+	}
+
+	~this()
+	{
+		if (m_ctx) {
+			if (--m_ctx.refCount == 0)
+				close();
+		}
 	}
 
 	@property int fd() const nothrow { return m_ctx.cachedFile.fd; }
