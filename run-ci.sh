@@ -21,7 +21,7 @@ fi
 
 dub test $DUB_FLAGS
 
-if [ "$OS" == "macOS-latest" ]; then
+if [ "$OS" == "macOS-13" ]; then
     dub test :tls -c openssl-1.1 $DUB_FLAGS
     DUB_FLAGS="$DUB_FLAGS --override-config vibe-stream:tls/openssl-1.1"
 else
