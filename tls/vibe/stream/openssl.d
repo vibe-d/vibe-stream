@@ -614,7 +614,8 @@ final class OpenSSLStream : TLSStream {
 				SSL_get0_alpn_selected(m_tls, &data, &datalen);
 				ret = cast(string)data[0 .. datalen].idup;
 			} ();
-			logDebug("alpn selected: %s", ret);
+			if (ret.length)
+				logDebug("alpn selected: %s", ret);
 			return  ret;
 		}
 	}
@@ -1135,7 +1136,7 @@ final class OpenSSLContext : TLSContext {
 		buf[$-1] = 0;
 
 		try {
-			logDebug("validate callback for %s", buf.ptr.to!string);
+			logDebugV("validate callback for %s", buf.ptr.to!string);
 
 			if (depth > vdata.verifyDepth) {
 				logDiagnostic("SSL cert chain too long: %s vs. %s", depth, vdata.verifyDepth);
@@ -1144,7 +1145,7 @@ final class OpenSSLContext : TLSContext {
 			}
 
 			if (err != X509_V_OK)
-				logDebug("SSL cert initial error: %s", X509_verify_cert_error_string(err).to!string);
+				logDebugV("SSL cert initial error: %s", X509_verify_cert_error_string(err).to!string);
 
 			if (!valid) {
 				switch (err) {
@@ -1193,7 +1194,8 @@ final class OpenSSLContext : TLSContext {
 
 		X509_STORE_CTX_set_error(ctx, err);
 
-		logDebug("SSL validation result: %s (%s)", valid, err);
+		if (!valid) logDebug("SSL validation result: %s (%s, %s)", valid, X509_verify_cert_error_string(err).to!string, err);
+		else logDebugV("SSL validation success");
 
 		return valid;
 	}
