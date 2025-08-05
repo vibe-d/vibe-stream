@@ -1,7 +1,5 @@
 .dub
 .vs
-libvibe_core.a
-vibe-core-test-*
 *.exe
 *.lst
 *.obj
@@ -9,8 +7,11 @@ vibe-core-test-*
 *.exp
 *.def
 *.pdb
+*.pdb
 dub.selections.json
-vibe_core.lib
+vibe-stream-test-*
+libvibe-stream*.a
+vibe-stream*.lib
 tests/tests
 
 /*.dll
