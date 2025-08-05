@@ -1194,7 +1194,7 @@ final class OpenSSLContext : TLSContext {
 
 		X509_STORE_CTX_set_error(ctx, err);
 
-		if (!valid) logDebug("SSL validation result: %s (%s, %s)", valid, X509_verify_cert_error_string(err).to!string, err);
+		if (!valid) logDebug("SSL validation failed: %s, %s", X509_verify_cert_error_string(err).to!string, err);
 		else logDebugV("SSL validation success");
 
 		return valid;
