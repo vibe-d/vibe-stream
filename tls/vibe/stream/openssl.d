@@ -723,7 +723,7 @@ final class OpenSSLContext : TLSContext {
 		final switch (kind) {
 			case TLSContextKind.client:
 				final switch (ver) {
-					case TLSVersion.any: method = SSLv23_client_method(); veroptions |= SSL_OP_NO_SSLv3; break;
+					case TLSVersion.any: method = SSLv23_client_method(); veroptions |= SSL_OP_NO_SSLv3|SSL_OP_NO_TLSv1; break;
 					case TLSVersion.ssl3: throw new Exception("SSLv3 is not supported anymore");
 					case TLSVersion.tls1: method = SSLv23_client_method(); veroptions |= SSL_OP_NO_SSLv3|SSL_OP_NO_TLSv1_1|SSL_OP_NO_TLSv1_2; maxver = TLS1_VERSION; break;
 					case TLSVersion.tls1_1: method = SSLv23_client_method(); veroptions |= SSL_OP_NO_SSLv3|SSL_OP_NO_TLSv1|SSL_OP_NO_TLSv1_2; minver = TLS1_1_VERSION; maxver = TLS1_1_VERSION; break;
@@ -743,7 +743,7 @@ final class OpenSSLContext : TLSContext {
 			case TLSContextKind.server:
 			case TLSContextKind.serverSNI:
 				final switch (ver) {
-					case TLSVersion.any: method = SSLv23_server_method(); veroptions |= SSL_OP_NO_SSLv3; break;
+					case TLSVersion.any: method = SSLv23_server_method(); veroptions |= SSL_OP_NO_SSLv3|SSL_OP_NO_TLSv1; break;
 					case TLSVersion.ssl3: throw new Exception("SSLv3 is not supported anymore");
 					case TLSVersion.tls1: method = SSLv23_server_method(); veroptions |= SSL_OP_NO_SSLv3|SSL_OP_NO_TLSv1_1|SSL_OP_NO_TLSv1_2; maxver = TLS1_VERSION; break;
 					case TLSVersion.tls1_1: method = SSLv23_server_method(); veroptions |= SSL_OP_NO_SSLv3|SSL_OP_NO_TLSv1|SSL_OP_NO_TLSv1_2; minver = TLS1_1_VERSION; maxver = TLS1_1_VERSION; break;
