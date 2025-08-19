@@ -713,28 +713,50 @@ final class OpenSSLContext : TLSContext {
 		static if (OPENSSL_VERSION_BEFORE(1, 1, 0))
 			options |= SSL_OP_SINGLE_DH_USE|SSL_OP_SINGLE_ECDH_USE; // There are always enabled in OpenSSL 1.1.0.
 		int minver = TLS1_VERSION;
-		int maxver = TLS1_2_VERSION;
+		static if (OPENSSL_VERSION_BEFORE(1, 1, 1)) {
+			int maxver = TLS1_2_VERSION;
+		} else {
+			int maxver = TLS1_3_VERSION;
+		}
 
 		() @trusted {
 		final switch (kind) {
 			case TLSContextKind.client:
 				final switch (ver) {
-					case TLSVersion.any: method = SSLv23_client_method(); veroptions |= SSL_OP_NO_SSLv3; break;
+					case TLSVersion.any: method = SSLv23_client_method(); veroptions |= SSL_OP_NO_SSLv3|SSL_OP_NO_TLSv1; break;
 					case TLSVersion.ssl3: throw new Exception("SSLv3 is not supported anymore");
 					case TLSVersion.tls1: method = SSLv23_client_method(); veroptions |= SSL_OP_NO_SSLv3|SSL_OP_NO_TLSv1_1|SSL_OP_NO_TLSv1_2; maxver = TLS1_VERSION; break;
 					case TLSVersion.tls1_1: method = SSLv23_client_method(); veroptions |= SSL_OP_NO_SSLv3|SSL_OP_NO_TLSv1|SSL_OP_NO_TLSv1_2; minver = TLS1_1_VERSION; maxver = TLS1_1_VERSION; break;
-					case TLSVersion.tls1_2: method = SSLv23_client_method(); veroptions |= SSL_OP_NO_SSLv3|SSL_OP_NO_TLSv1|SSL_OP_NO_TLSv1_1; minver = TLS1_2_VERSION; break;
+					case TLSVersion.tls1_2: method = SSLv23_client_method(); veroptions |= SSL_OP_NO_SSLv3|SSL_OP_NO_TLSv1|SSL_OP_NO_TLSv1_1; minver = TLS1_2_VERSION; maxver = TLS1_2_VERSION; break;
+					case TLSVersion.tls1_3:
+						static if (OPENSSL_VERSION_BEFORE(1, 1, 1)) {
+							 throw new Exception("OpenSSL "~OpenSSLVersion.text~" does not support TLSv1.3");
+						} else {
+							method = SSLv23_client_method();
+							veroptions |= SSL_OP_NO_SSLv3|SSL_OP_NO_TLSv1|SSL_OP_NO_TLSv1_1|SSL_OP_NO_TLSv1_2;
+							minver = TLS1_3_VERSION;
+							break;
+						}
 					case TLSVersion.dtls1: method = DTLSv1_client_method(); minver = DTLS1_VERSION; maxver = DTLS1_VERSION; break;
 				}
 				break;
 			case TLSContextKind.server:
 			case TLSContextKind.serverSNI:
 				final switch (ver) {
-					case TLSVersion.any: method = SSLv23_server_method(); veroptions |= SSL_OP_NO_SSLv3; break;
+					case TLSVersion.any: method = SSLv23_server_method(); veroptions |= SSL_OP_NO_SSLv3|SSL_OP_NO_TLSv1; break;
 					case TLSVersion.ssl3: throw new Exception("SSLv3 is not supported anymore");
 					case TLSVersion.tls1: method = SSLv23_server_method(); veroptions |= SSL_OP_NO_SSLv3|SSL_OP_NO_TLSv1_1|SSL_OP_NO_TLSv1_2; maxver = TLS1_VERSION; break;
 					case TLSVersion.tls1_1: method = SSLv23_server_method(); veroptions |= SSL_OP_NO_SSLv3|SSL_OP_NO_TLSv1|SSL_OP_NO_TLSv1_2; minver = TLS1_1_VERSION; maxver = TLS1_1_VERSION; break;
-					case TLSVersion.tls1_2: method = SSLv23_server_method(); veroptions |= SSL_OP_NO_SSLv3|SSL_OP_NO_TLSv1|SSL_OP_NO_TLSv1_1; minver = TLS1_2_VERSION; break;
+					case TLSVersion.tls1_2: method = SSLv23_server_method(); veroptions |= SSL_OP_NO_SSLv3|SSL_OP_NO_TLSv1|SSL_OP_NO_TLSv1_1; minver = TLS1_2_VERSION; maxver = TLS1_2_VERSION; break;
+					case TLSVersion.tls1_3:
+						static if (OPENSSL_VERSION_BEFORE(1, 1, 1)) {
+							throw new Exception("OpenSSL "~OpenSSLVersion.text~" does not support TLSv1.3");
+						} else {
+							method = SSLv23_server_method();
+							veroptions |= SSL_OP_NO_SSLv3|SSL_OP_NO_TLSv1|SSL_OP_NO_TLSv1_1|SSL_OP_NO_TLSv1_2;
+							minver = TLS1_3_VERSION;
+							break;
+						}
 					case TLSVersion.dtls1: method = DTLSv1_server_method(); minver = DTLS1_VERSION; maxver = DTLS1_VERSION; break;
 				}
 				options |= SSL_OP_CIPHER_SERVER_PREFERENCE;
@@ -962,7 +984,7 @@ final class OpenSSLContext : TLSContext {
 		@trusted
 	{
 		if (list is null) {
-			if (m_kind == TLSContextKind.server && m_version == TLSVersion.tls1_2) {
+			if (m_kind == TLSContextKind.server && m_version.among(TLSVersion.tls1_2, TLSVersion.tls1_3)) {
 				list = "TLS_AES_128_GCM_SHA256:TLS_AES_256_GCM_SHA384:TLS_CHACHA20_POLY1305_SHA256:"
 					~ "ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:"
 					~ "ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:"

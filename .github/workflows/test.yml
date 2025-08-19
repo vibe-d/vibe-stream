@@ -21,10 +21,9 @@ jobs:
                 dc: [dmd-latest, ldc-latest]
                 arch: [x86_64]
                 include:
-                  - { os: windows-latest, dc: dmd-2.092.0, arch: x86_64 }
-                  - { os: windows-latest, dc: dmd-2.092.0, arch: x86_mscoff }
-                  - { os: windows-latest, dc: dmd-2.091.1, arch: x86_64 }
-                  - { os: windows-latest, dc: ldc-1.20.1, arch: x86_64 }
+                  - { os: windows-latest, dc: dmd-2.100.2, arch: x86_64 }
+                  - { os: windows-latest, dc: dmd-2.100.2, arch: x86_mscoff }
+                  - { os: windows-latest, dc: ldc-1.30.0, arch: x86_64 }
 
         runs-on: ${{matrix.os}}
         steps:
