@@ -151,7 +151,7 @@ final class MemoryStream : RandomAccessStream {
 		m_size = cast(size_t)size;
 	}
 
-	void seek(ulong offset) { assert(offset <= m_data.length); m_ptr = cast(size_t)offset; }
+	void seek(ulong offset) { enforce(offset <= m_data.length, "Attempt to seek past memory buffer"); m_ptr = cast(size_t)offset; }
 	ulong tell() nothrow { return m_ptr; }
 	const(ubyte)[] peek() { return m_data[m_ptr .. min(m_size, m_ptr+m_peekWindow)]; }
 
