@@ -49,6 +49,10 @@ version(VibeForceALPN) enum alpn_forced = true;
 else enum alpn_forced = false;
 enum haveALPN = OPENSSL_VERSION_NUMBER >= 0x10200000 || alpn_forced;
 
+version(VibeForceKeylog) enum keylog_forced = true;
+else enum keylog_forced = false;
+enum haveKeylog = OPENSSL_VERSION_AT_LEAST(1, 1, 1) || keylog_forced;
+
 // openssl/1.1.0 hack: provides a 1.0.x API in terms of the 1.1.x API
 static if (OPENSSL_VERSION_AT_LEAST(1, 1, 0)) {
 	extern(C) const(SSL_METHOD)* TLS_client_method();
@@ -848,6 +852,34 @@ final class OpenSSLContext : TLSContext {
 
 	/// Get the current ALPN callback function
 	@property TLSALPNCallback alpnCallback() const { return m_alpnCallback; }
+
+	/// Callback function which logs the key file (if desired)
+	@property void keylogCallback(SSL_CTX_keylog_cb_func cb)
+	{
+		logDebug("Keylog callback");
+		static if (haveKeylog) {
+			logDebug("Call keylog callback");
+			// Note: no data parameter for the callback, so we can't intercept
+			// and properly type the callback.
+			() @trusted {
+				SSL_CTX_set_keylog_callback(m_ctx, cb);
+			} ();
+		}
+	}
+
+	@property SSL_CTX_keylog_cb_func keylogCallback()
+	{
+		static if (haveKeylog) {
+			logDebug("Call keylog callback");
+			// Note: no data parameter for the callback, so we can't intercept
+			// and properly type the callback.
+			return () @trusted {
+				return SSL_CTX_get_keylog_callback(m_ctx);
+			} ();
+		}
+		else
+			return null;
+	}
 
 	/// Invoked by client to offer alpn
 	void setClientALPN(string[] alpn_list)
