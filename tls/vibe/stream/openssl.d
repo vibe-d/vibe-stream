@@ -49,9 +49,11 @@ version(VibeForceALPN) enum alpn_forced = true;
 else enum alpn_forced = false;
 enum haveALPN = OPENSSL_VERSION_NUMBER >= 0x10200000 || alpn_forced;
 
-version(VibeForceKeylog) enum keylog_forced = true;
-else enum keylog_forced = false;
-enum haveKeylog = OPENSSL_VERSION_AT_LEAST(1, 1, 1) || keylog_forced;
+private {
+	version(VibeForceKeylog) enum keylog_forced = true;
+	else enum keylog_forced = false;
+	enum haveKeylog = OPENSSL_VERSION_AT_LEAST(1, 1, 1) || keylog_forced;
+}
 
 // openssl/1.1.0 hack: provides a 1.0.x API in terms of the 1.1.x API
 static if (OPENSSL_VERSION_AT_LEAST(1, 1, 0)) {
@@ -853,11 +855,10 @@ final class OpenSSLContext : TLSContext {
 	/// Get the current ALPN callback function
 	@property TLSALPNCallback alpnCallback() const { return m_alpnCallback; }
 
-	/// Callback function which logs the key file (if desired)
-	@property void keylogCallback(SSL_CTX_keylog_cb_func cb)
-	{
-		logDebug("Keylog callback");
-		static if (haveKeylog) {
+	static if (haveKeylog) {
+		/// Callback function which logs the key file (if desired)
+		@property void keylogCallback(SSL_CTX_keylog_cb_func cb)
+		{
 			logDebug("Call keylog callback");
 			// Note: no data parameter for the callback, so we can't intercept
 			// and properly type the callback.
@@ -865,11 +866,9 @@ final class OpenSSLContext : TLSContext {
 				SSL_CTX_set_keylog_callback(m_ctx, cb);
 			} ();
 		}
-	}
 
-	@property SSL_CTX_keylog_cb_func keylogCallback()
-	{
-		static if (haveKeylog) {
+		@property SSL_CTX_keylog_cb_func keylogCallback()
+		{
 			logDebug("Call keylog callback");
 			// Note: no data parameter for the callback, so we can't intercept
 			// and properly type the callback.
@@ -877,8 +876,6 @@ final class OpenSSLContext : TLSContext {
 				return SSL_CTX_get_keylog_callback(m_ctx);
 			} ();
 		}
-		else
-			return null;
 	}
 
 	/// Invoked by client to offer alpn
@@ -1256,6 +1253,35 @@ final class OpenSSLContext : TLSContext {
 }
 
 alias SSLState = ssl_st*;
+
+static if (haveKeylog) {
+	/**
+	 * Utility callback to use the SSLKEYLOGFILE environment variable to log the key. Set on
+	 *
+	 * Params: envVar = The environment variable which contains the keylog filename.
+	 */
+	void keylogOnEnvVar(SSLContext* context) {
+		static extern(C) void callback(const SSL* ssl, const char* line) {
+			import core.file;
+			// if the file is not yet open, open it.
+			static FileStream keyfile;
+			if (!keyfile.isOpen) {
+				// read the environment variable
+				import std.process;
+
+				if (line is null) return;
+				auto path = NativePath(environment.get("SSLKEYLOGFILE", null));
+				if (!path.length) return;
+				keyfile = openFile(path, FileMode.readWrite);
+			}
+
+			keyfile.write(line[0 .. strlen(line)]);
+		}
+
+		context.keylogCallback = &callback;
+	}
+}
+
 
 /**************************************************************************************************/
 /* Private functions                                                                              */
