@@ -859,7 +859,6 @@ final class OpenSSLContext : TLSContext {
 		/// Callback function which logs the key file (if desired)
 		@property void keylogCallback(SSL_CTX_keylog_cb_func cb)
 		{
-			logDebug("Call keylog callback");
 			// Note: no data parameter for the callback, so we can't intercept
 			// and properly type the callback.
 			() @trusted {
@@ -869,7 +868,6 @@ final class OpenSSLContext : TLSContext {
 
 		@property SSL_CTX_keylog_cb_func keylogCallback()
 		{
-			logDebug("Call keylog callback");
 			// Note: no data parameter for the callback, so we can't intercept
 			// and properly type the callback.
 			return () @trusted {
@@ -1256,25 +1254,34 @@ alias SSLState = ssl_st*;
 
 static if (haveKeylog) {
 	/**
-	 * Utility callback to use the SSLKEYLOGFILE environment variable to log the key. Set on
+	 * Use the SSLKEYLOGFILE environment variable to log the key.
 	 *
-	 * Params: envVar = The environment variable which contains the keylog filename.
+	 * Whatever filename is stored in the SSLKEYLOGFILE environment variable
+	 * determines where the keys will be logged. Each key will be logged on a
+	 * separate line.
+	 *
+	 * This must be called on every SSLContext you wish to log the key. If the
+	 * environment variable is not set, this does not log the key.
 	 */
 	void keylogOnEnvVar(SSLContext* context) {
 		static extern(C) void callback(const SSL* ssl, const char* line) {
-			import core.file;
-			// if the file is not yet open, open it.
+			import vibe.core.file;
+			if (line is null) return;
+
+			// use a separate boolean to avoid always checking for an env var when it doesn't exist.
 			static FileStream keyfile;
-			if (!keyfile.isOpen) {
+			static bool initialized;
+			if (!initialized) {
+				initialized = true;
 				// read the environment variable
 				import std.process;
 
-				if (line is null) return;
 				auto path = NativePath(environment.get("SSLKEYLOGFILE", null));
 				if (!path.length) return;
 				keyfile = openFile(path, FileMode.readWrite);
 			}
 
+			if (!keyfile.isOpen) return;
 			keyfile.write(line[0 .. strlen(line)]);
 		}
 
