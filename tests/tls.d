@@ -2,6 +2,7 @@
 	name "tests"
 	description "TLS tunnel and certificate test"
 	dependency "vibe-stream:tls" path=".."
+	runEnvironments "SSLKEYLOGFILE" "loggedkeys.txt"
 +/
 module app;
 
@@ -225,6 +226,24 @@ void testConn(TLSVersion cli_version, TLSVersion srv_version, bool expect_succes
 				ctunnel.finalize();
 				stunnel.finalize();
 				return;
+			}
+			// test logging the keyfile
+			import vibe.stream.openssl;
+			static if (haveKeylog) {
+				if (auto osslctx = cast(OpenSSLContext)cctx) {
+					osslctx.keylogOnEnvVar();
+				}
+			} else {
+				// still write the keylog file, so the test can pass
+				import std.process;
+				import vibe.core.path;
+				auto path = NativePath(environment.get("SSLKEYLOGFILE", null));
+				if (!path.empty) {
+					import vibe.core.file;
+					auto keyfile = openFile(path, FileMode.append);
+					// no need to write anything, the file just needs to exist.
+					keyfile.close();
+				}
 			}
 			cctx.peerValidationMode = TLSPeerValidationMode.none;
 			TLSStream cconn;

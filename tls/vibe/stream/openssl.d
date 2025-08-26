@@ -49,11 +49,9 @@ version(VibeForceALPN) enum alpn_forced = true;
 else enum alpn_forced = false;
 enum haveALPN = OPENSSL_VERSION_NUMBER >= 0x10200000 || alpn_forced;
 
-private {
-	version(VibeForceKeylog) enum keylog_forced = true;
-	else enum keylog_forced = false;
-	enum haveKeylog = OPENSSL_VERSION_AT_LEAST(1, 1, 1) || keylog_forced;
-}
+version(VibeForceKeylog) enum keylog_forced = true;
+else enum keylog_forced = false;
+enum haveKeylog = OPENSSL_VERSION_AT_LEAST(1, 1, 1) || keylog_forced;
 
 // openssl/1.1.0 hack: provides a 1.0.x API in terms of the 1.1.x API
 static if (OPENSSL_VERSION_AT_LEAST(1, 1, 0)) {
@@ -1265,7 +1263,7 @@ static if (haveKeylog) {
 	 */
 	import vibe.core.file;
 	private FileStream keyfile;
-	void keylogOnEnvVar(OpenSSLContext* context) {
+	void keylogOnEnvVar(OpenSSLContext context) {
 		static extern(C) void callback(const SSL* ssl, const char* line) {
 			if (line is null) return;
 
@@ -1279,11 +1277,13 @@ static if (haveKeylog) {
 				import vibe.core.path;
 				auto path = NativePath(environment.get("SSLKEYLOGFILE", null));
 				if (path.empty) return;
-				keyfile = openFile(path, FileMode.readWrite);
+				// we use append like latest openssl does.
+				keyfile = openFile(path, FileMode.append);
 			}
 
 			if (!keyfile.isOpen) return;
 			keyfile.write(line[0 .. strlen(line)]);
+			keyfile.write("\n");
 		}
 
 		context.keylogCallback = &callback;
