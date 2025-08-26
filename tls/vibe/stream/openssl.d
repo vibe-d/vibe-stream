@@ -1260,13 +1260,13 @@ static if (haveKeylog) {
 	 * determines where the keys will be logged. Each key will be logged on a
 	 * separate line.
 	 *
-	 * This must be called on every SSLContext you wish to log the key. If the
+	 * This must be called on every OpenSSLContext you wish to log the key. If the
 	 * environment variable is not set, this does not log the key.
 	 */
+	import vibe.core.file;
 	private FileStream keyfile;
-	void keylogOnEnvVar(SSLContext* context) {
+	void keylogOnEnvVar(OpenSSLContext* context) {
 		static extern(C) void callback(const SSL* ssl, const char* line) {
-			import vibe.core.file;
 			if (line is null) return;
 
 			// use a separate boolean to avoid always checking for an env var when it doesn't exist.
@@ -1276,8 +1276,9 @@ static if (haveKeylog) {
 				// read the environment variable
 				import std.process;
 
+				import vibe.core.path;
 				auto path = NativePath(environment.get("SSLKEYLOGFILE", null));
-				if (!path.length) return;
+				if (path.empty) return;
 				keyfile = openFile(path, FileMode.readWrite);
 			}
 
