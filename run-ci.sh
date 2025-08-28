@@ -29,8 +29,13 @@ else
 fi
 
 if [ ${RUN_TEST=1} -eq 1 ]; then
+    export SSLKEYLOGFILE="loggedkeys.txt"
+    rm -f tests/loggedkeys.txt
     for ex in `cd tests && ls -1 *.d`; do
         echo "[INFO] Running test $ex"
         (cd tests && dub --temp-build --single $ex $DUB_FLAGS)
     done
+    # check the keylog file was written
+    # test -f "tests/loggedkeys.txt"
+    cat tests/loggedkeys.txt
 fi
