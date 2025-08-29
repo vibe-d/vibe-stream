@@ -799,6 +799,11 @@ final class OpenSSLContext : TLSContext {
 		if (kind == TLSContextKind.client) peerValidationMode = TLSPeerValidationMode.trustedCert;
 		else peerValidationMode = TLSPeerValidationMode.none;
 
+		version(VibeKeylogFromEnvironment) static if(haveKeylog) {
+			// automatically set up the SSLKEYLOGFILE environment handling.
+			() @trusted {this.keylogOnEnvVar();} ();
+		}
+
 		// while it would be nice to use the system's certificate store, this
 		// seems to be difficult to get right across all systems. The most
 		// popular alternative is to use Mozilla's certificate store and
@@ -1251,6 +1256,9 @@ final class OpenSSLContext : TLSContext {
 alias SSLState = ssl_st*;
 
 static if (haveKeylog) {
+	// use phobos, because concurrent writes are not possible with vibe.
+	import std.stdio;
+	private __gshared File keyfile;
 	/**
 	 * Use the SSLKEYLOGFILE environment variable to log the key.
 	 *
@@ -1261,8 +1269,6 @@ static if (haveKeylog) {
 	 * This must be called on every OpenSSLContext you wish to log the key. If the
 	 * environment variable is not set, this does not log the key.
 	 */
-	import vibe.core.file;
-	private FileStream keyfile;
 	void keylogOnEnvVar(OpenSSLContext context) {
 		static extern(C) void callback(const SSL* ssl, const char* line) {
 			if (line is null) return;
@@ -1274,22 +1280,20 @@ static if (haveKeylog) {
 				// read the environment variable
 				import std.process;
 
-				import vibe.core.path;
-				auto path = NativePath(environment.get("SSLKEYLOGFILE", null));
-				if (path.empty) return;
+				auto path = environment.get("SSLKEYLOGFILE", null);
+				if (path.length == 0) return;
 				// we use append like latest openssl does.
-				keyfile = openFile(path, FileMode.append);
+				keyfile = File(path, "a+");
 			}
 
 			if (!keyfile.isOpen) return;
-			keyfile.write(line[0 .. strlen(line)]);
-			keyfile.write("\n");
+			keyfile.writeln(line[0 .. strlen(line)]);
 		}
 
 		context.keylogCallback = &callback;
 	}
 
-	static ~this() {
+	shared static ~this() {
 		keyfile.close();
 	}
 }
