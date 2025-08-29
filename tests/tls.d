@@ -301,6 +301,13 @@ void testVersion()
 
 void main()
 {
+	import vibe.core.file;
+	try {
+		removeFile("loggedkeys.txt");
+	} catch(Exception e) {
+		// ignore errors for this.
+	}
+
 	testValidation();
 	testVersion();
 }

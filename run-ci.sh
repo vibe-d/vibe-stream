@@ -29,7 +29,6 @@ else
 fi
 
 if [ ${RUN_TEST=1} -eq 1 ]; then
-    rm -f tests/loggedkeys.txt
     for ex in `cd tests && ls -1 *.d`; do
         echo "[INFO] Running test $ex"
         (cd tests && dub --temp-build --single $ex $DUB_FLAGS)
