@@ -49,9 +49,7 @@ version(VibeForceALPN) enum alpn_forced = true;
 else enum alpn_forced = false;
 enum haveALPN = OPENSSL_VERSION_NUMBER >= 0x10200000 || alpn_forced;
 
-version(VibeForceKeylog) enum keylog_forced = true;
-else enum keylog_forced = false;
-enum haveKeylog = OPENSSL_VERSION_AT_LEAST(1, 1, 1) || keylog_forced;
+enum haveKeylog = OPENSSL_VERSION_AT_LEAST(1, 1, 1);
 
 // openssl/1.1.0 hack: provides a 1.0.x API in terms of the 1.1.x API
 static if (OPENSSL_VERSION_AT_LEAST(1, 1, 0)) {
@@ -1270,6 +1268,15 @@ static if (haveKeylog) {
 	 * environment variable is not set, this does not log the key.
 	 */
 	void keylogOnEnvVar(OpenSSLContext context) {
+		static string getPath() {
+			import std.process;
+			return environment.get("SSLKEYLOGFILE", null);
+		}
+
+		if (getPath().length == 0)
+			// env var not set.
+			return;
+
 		static extern(C) void callback(const SSL* ssl, const char* line) {
 			if (line is null) return;
 
@@ -1280,7 +1287,7 @@ static if (haveKeylog) {
 				// read the environment variable
 				import std.process;
 
-				auto path = environment.get("SSLKEYLOGFILE", null);
+				auto path = getPath();
 				if (path.length == 0) return;
 				// we use append like latest openssl does.
 				keyfile = File(path, "a+");

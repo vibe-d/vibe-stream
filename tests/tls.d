@@ -228,20 +228,6 @@ void testConn(TLSVersion cli_version, TLSVersion srv_version, bool expect_succes
 				stunnel.finalize();
 				return;
 			}
-			// test logging the keyfile
-			import vibe.stream.openssl;
-			static if (!haveKeylog) {
-				// still write the keylog file, so the test can pass
-				import std.process;
-				import vibe.core.path;
-				auto path = NativePath(environment.get("SSLKEYLOGFILE", null));
-				if (!path.empty) {
-					import vibe.core.file;
-					auto keyfile = openFile(path, FileMode.append);
-					// no need to write anything, the file just needs to exist.
-					keyfile.close();
-				}
-			}
 			cctx.peerValidationMode = TLSPeerValidationMode.none;
 			TLSStream cconn;
 			try {
@@ -298,11 +284,16 @@ void testVersion()
 
 void main()
 {
-	import vibe.core.file;
-	try {
-		removeFile("loggedkeys.txt");
-	} catch(Exception e) {
-		// ignore errors for this.
+	// check that the loggedkeys.txt file exists
+	import vibe.stream.openssl;
+	static if(haveKeylog) {
+		import vibe.core.file;
+		try {
+			removeFile("loggedkeys.txt");
+		} catch(Exception e) {
+			// ignore errors for this.
+		}
+		scope(exit) assert(existsFile("loggedkeys.txt"));
 	}
 
 	testValidation();

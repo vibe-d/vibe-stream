@@ -33,6 +33,4 @@ if [ ${RUN_TEST=1} -eq 1 ]; then
         echo "[INFO] Running test $ex"
         (cd tests && dub --temp-build --single $ex $DUB_FLAGS)
     done
-    # check the keylog file was written
-    test -f "tests/loggedkeys.txt"
 fi
