@@ -1316,7 +1316,9 @@ static if (haveKeylog) {
 	 * separate line.
 	 *
 	 * This must be called on every OpenSSLContext you wish to log the key. If the
-	 * environment variable is not set, this does not log the key.
+	 * environment variable is not set, this does nothing.
+	 *
+	 * See_Also: https://everything.curl.dev/usingcurl/tls/sslkeylogfile.html
 	 */
 	void keylogOnEnvVar(OpenSSLContext context) {
 		if (KeylogFile.getPath().length == 0)
