@@ -799,7 +799,7 @@ final class OpenSSLContext : TLSContext {
 
 		version(VibeKeylogFromEnvironment) static if (haveKeylog) {
 			// automatically set up the SSLKEYLOGFILE environment handling.
-			() @trusted {this.keylogOnEnvVar();} ();
+			() @trusted {this.setSSLKeyLogFileCallback();} ();
 		}
 
 		// while it would be nice to use the system's certificate store, this
@@ -1254,62 +1254,32 @@ final class OpenSSLContext : TLSContext {
 alias SSLState = ssl_st*;
 
 static if (haveKeylog) {
-	// structure to combine sync with key logging.
-	// Note that std.stdio.File is synchronized internally via C, so no mutex
-	// needed to write data.
-	private struct KeylogFile {
-		// use phobos, because concurrent writes are not possible with vibe.
-		import std.stdio;
-		import vibe.core.sync;
-		private File keyfile;
-		private TaskMutex mutex;
+	private {
+		auto keyfile() {
+			import std.stdio;
+			__gshared File _keyfile;
 
-		File initialize() shared {
-			mutex.lock();
-			scope(exit) mutex.unlock();
-			return (cast(KeylogFile*)&this).initializeImpl();
+			// use phobos, because concurrent writes are not possible with vibe.
+			import std.concurrency;
+			return initOnce!_keyfile(File(keyfilePath(), "a+"));
 		}
 
-		private File initializeImpl() {
-			if (keyfile.isOpen)
-				return keyfile;
-
-			// read the environment variable and open the file.
-			auto path = getPath();
-			return keyfile = File(path, "a+");
-		}
-
-		static string getPath() {
+		string keyfilePath() {
 			// read the environment variable
 			import std.process;
 			return environment.get("SSLKEYLOGFILE", null);
 		}
 
-		void logLine(const(char)[] line) shared {
-			// initialize if not already done
-			auto f = initialize();
+		void logKeyfileLine(const(char)[] line) {
+			auto f = keyfile;
 
 			assert(f.isOpen);
 			f.writeln(line);
 		}
-
-		void close() shared {
-			(cast(KeylogFile*)&this).keyfile.close();
-		}
-	}
-
-	private shared KeylogFile keyfile;
-
-	shared static this() {
-		keyfile.mutex = new shared(TaskMutex)();
-	}
-
-	shared static ~this() {
-		keyfile.close();
 	}
 
 	/**
-	 * Use the SSLKEYLOGFILE environment variable to log the key.
+	 * Set up OpenSSL to output master-secret keys to SSLKEYLOGFILE
 	 *
 	 * Whatever filename is stored in the SSLKEYLOGFILE environment variable
 	 * determines where the keys will be logged. Each key will be logged on a
@@ -1320,15 +1290,15 @@ static if (haveKeylog) {
 	 *
 	 * See_Also: https://everything.curl.dev/usingcurl/tls/sslkeylogfile.html
 	 */
-	void keylogOnEnvVar(OpenSSLContext context) {
-		if (KeylogFile.getPath().length == 0)
+	void setSSLKeyLogFileCallback(OpenSSLContext context) {
+		if (keyfilePath().length == 0)
 			// env var not set.
 			return;
 
 		static extern(C) void callback(const SSL* ssl, const char* line) {
 			if (line is null) return;
 
-			keyfile.logLine(line[0 .. strlen(line)]);
+			logKeyfileLine(line[0 .. strlen(line)]);
 		}
 
 		context.keylogCallback = &callback;
