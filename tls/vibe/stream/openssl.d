@@ -797,7 +797,7 @@ final class OpenSSLContext : TLSContext {
 		if (kind == TLSContextKind.client) peerValidationMode = TLSPeerValidationMode.trustedCert;
 		else peerValidationMode = TLSPeerValidationMode.none;
 
-		version(VibeKeylogFromEnvironment) static if(haveKeylog) {
+		version(VibeKeylogFromEnvironment) static if (haveKeylog) {
 			// automatically set up the SSLKEYLOGFILE environment handling.
 			() @trusted {this.keylogOnEnvVar();} ();
 		}
@@ -1254,9 +1254,60 @@ final class OpenSSLContext : TLSContext {
 alias SSLState = ssl_st*;
 
 static if (haveKeylog) {
-	// use phobos, because concurrent writes are not possible with vibe.
-	import std.stdio;
-	private __gshared File keyfile;
+	// structure to combine sync with key logging.
+	// Note that std.stdio.File is synchronized internally via C, so no mutex
+	// needed to write data.
+	private struct KeylogFile {
+		// use phobos, because concurrent writes are not possible with vibe.
+		import std.stdio;
+		import vibe.core.sync;
+		private File keyfile;
+		private TaskMutex mutex;
+
+		File initialize() shared {
+			mutex.lock();
+			scope(exit) mutex.unlock();
+			return (cast(KeylogFile*)&this).initializeImpl();
+		}
+
+		private File initializeImpl() {
+			if (keyfile.isOpen)
+				return keyfile;
+
+			// read the environment variable and open the file.
+			auto path = getPath();
+			return keyfile = File(path, "a+");
+		}
+
+		static string getPath() {
+			// read the environment variable
+			import std.process;
+			return environment.get("SSLKEYLOGFILE", null);
+		}
+
+		void logLine(const(char)[] line) shared {
+			// initialize if not already done
+			auto f = initialize();
+
+			assert(f.isOpen);
+			f.writeln(line);
+		}
+
+		void close() shared {
+			(cast(KeylogFile*)&this).keyfile.close();
+		}
+	}
+
+	private shared KeylogFile keyfile;
+
+	shared static this() {
+		keyfile.mutex = new shared(TaskMutex)();
+	}
+
+	shared static ~this() {
+		keyfile.close();
+	}
+
 	/**
 	 * Use the SSLKEYLOGFILE environment variable to log the key.
 	 *
@@ -1268,40 +1319,17 @@ static if (haveKeylog) {
 	 * environment variable is not set, this does not log the key.
 	 */
 	void keylogOnEnvVar(OpenSSLContext context) {
-		static string getPath() {
-			import std.process;
-			return environment.get("SSLKEYLOGFILE", null);
-		}
-
-		if (getPath().length == 0)
+		if (KeylogFile.getPath().length == 0)
 			// env var not set.
 			return;
 
 		static extern(C) void callback(const SSL* ssl, const char* line) {
 			if (line is null) return;
 
-			// use a separate boolean to avoid always checking for an env var when it doesn't exist.
-			static bool initialized;
-			if (!initialized) {
-				initialized = true;
-				// read the environment variable
-				import std.process;
-
-				auto path = getPath();
-				if (path.length == 0) return;
-				// we use append like latest openssl does.
-				keyfile = File(path, "a+");
-			}
-
-			if (!keyfile.isOpen) return;
-			keyfile.writeln(line[0 .. strlen(line)]);
+			keyfile.logLine(line[0 .. strlen(line)]);
 		}
 
 		context.keylogCallback = &callback;
-	}
-
-	shared static ~this() {
-		keyfile.close();
 	}
 }
 

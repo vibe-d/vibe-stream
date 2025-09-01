@@ -286,7 +286,7 @@ void main()
 {
 	// check that the loggedkeys.txt file exists
 	import vibe.stream.openssl;
-	static if(haveKeylog) {
+	static if (haveKeylog) {
 		import vibe.core.file;
 		try {
 			removeFile("loggedkeys.txt");
