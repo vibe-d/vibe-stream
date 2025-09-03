@@ -1275,6 +1275,7 @@ static if (haveKeylog) {
 
 			assert(f.isOpen);
 			f.writeln(line);
+			f.flush();
 		}
 	}
 
