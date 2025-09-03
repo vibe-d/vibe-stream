@@ -49,6 +49,8 @@ version(VibeForceALPN) enum alpn_forced = true;
 else enum alpn_forced = false;
 enum haveALPN = OPENSSL_VERSION_NUMBER >= 0x10200000 || alpn_forced;
 
+enum haveKeylog = OPENSSL_VERSION_AT_LEAST(1, 1, 1);
+
 // openssl/1.1.0 hack: provides a 1.0.x API in terms of the 1.1.x API
 static if (OPENSSL_VERSION_AT_LEAST(1, 1, 0)) {
 	extern(C) const(SSL_METHOD)* TLS_client_method();
@@ -795,6 +797,11 @@ final class OpenSSLContext : TLSContext {
 		if (kind == TLSContextKind.client) peerValidationMode = TLSPeerValidationMode.trustedCert;
 		else peerValidationMode = TLSPeerValidationMode.none;
 
+		version(VibeKeylogFromEnvironment) static if (haveKeylog) {
+			// automatically set up the SSLKEYLOGFILE environment handling.
+			() @trusted {this.setSSLKeyLogFileCallback();} ();
+		}
+
 		// while it would be nice to use the system's certificate store, this
 		// seems to be difficult to get right across all systems. The most
 		// popular alternative is to use Mozilla's certificate store and
@@ -848,6 +855,27 @@ final class OpenSSLContext : TLSContext {
 
 	/// Get the current ALPN callback function
 	@property TLSALPNCallback alpnCallback() const { return m_alpnCallback; }
+
+	static if (haveKeylog) {
+		/// Callback function which logs the key file (if desired)
+		@property void keylogCallback(SSL_CTX_keylog_cb_func cb)
+		{
+			// Note: no data parameter for the callback, so we can't intercept
+			// and properly type the callback.
+			() @trusted {
+				SSL_CTX_set_keylog_callback(m_ctx, cb);
+			} ();
+		}
+
+		@property SSL_CTX_keylog_cb_func keylogCallback()
+		{
+			// Note: no data parameter for the callback, so we can't intercept
+			// and properly type the callback.
+			return () @trusted {
+				return SSL_CTX_get_keylog_callback(m_ctx);
+			} ();
+		}
+	}
 
 	/// Invoked by client to offer alpn
 	void setClientALPN(string[] alpn_list)
@@ -1224,6 +1252,60 @@ final class OpenSSLContext : TLSContext {
 }
 
 alias SSLState = ssl_st*;
+
+static if (haveKeylog) {
+	private {
+		auto keyfile() {
+			import std.stdio;
+			__gshared File _keyfile;
+
+			// use phobos, because concurrent writes are not possible with vibe.
+			import std.concurrency;
+			return initOnce!_keyfile(File(keyfilePath(), "a+"));
+		}
+
+		string keyfilePath() {
+			// read the environment variable
+			import std.process;
+			return environment.get("SSLKEYLOGFILE", null);
+		}
+
+		void logKeyfileLine(const(char)[] line) {
+			auto f = keyfile;
+
+			assert(f.isOpen);
+			f.writeln(line);
+			f.flush();
+		}
+	}
+
+	/**
+	 * Set up OpenSSL to output master-secret keys to SSLKEYLOGFILE
+	 *
+	 * Whatever filename is stored in the SSLKEYLOGFILE environment variable
+	 * determines where the keys will be logged. Each key will be logged on a
+	 * separate line.
+	 *
+	 * This must be called on every OpenSSLContext you wish to log the key. If the
+	 * environment variable is not set, this does nothing.
+	 *
+	 * See_Also: https://everything.curl.dev/usingcurl/tls/sslkeylogfile.html
+	 */
+	void setSSLKeyLogFileCallback(OpenSSLContext context) {
+		if (keyfilePath().length == 0)
+			// env var not set.
+			return;
+
+		static extern(C) void callback(const SSL* ssl, const char* line) {
+			if (line is null) return;
+
+			logKeyfileLine(line[0 .. strlen(line)]);
+		}
+
+		context.keylogCallback = &callback;
+	}
+}
+
 
 /**************************************************************************************************/
 /* Private functions                                                                              */

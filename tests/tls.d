@@ -2,6 +2,8 @@
 	name "tests"
 	description "TLS tunnel and certificate test"
 	dependency "vibe-stream:tls" path=".."
+	runEnvironments "SSLKEYLOGFILE" "loggedkeys.txt"
+	versions "VibeKeylogFromEnvironment"
 +/
 module app;
 
@@ -282,6 +284,18 @@ void testVersion()
 
 void main()
 {
+	// check that the loggedkeys.txt file exists
+	import vibe.stream.openssl;
+	static if (haveKeylog) {
+		import vibe.core.file;
+		try {
+			removeFile("loggedkeys.txt");
+		} catch(Exception e) {
+			// ignore errors for this.
+		}
+		scope(exit) assert(existsFile("loggedkeys.txt"));
+	}
+
 	testValidation();
 	testVersion();
 }
