@@ -337,9 +337,9 @@ enum TLSContextKind {
 enum TLSVersion {
 	any, /// Accept TLSv1.0 and greater
 	ssl3, /// Accept only SSLv3 (not supported anymore)
-	tls1, /// Accept only TLSv1.0
-	tls1_1, /// Accept only TLSv1.1
-	tls1_2, /// Accept only TLSv1.2
+	tls1, /// Accept TLSv1.0 or above
+	tls1_1, /// Accept TLSv1.1 or above
+	tls1_2, /// Accept TLSv1.2 or above
 	tls1_3, /// Accept only TLSv1.3
 	dtls1, /// Use DTLSv1.0
 
