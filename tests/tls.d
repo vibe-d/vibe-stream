@@ -16,6 +16,8 @@ import vibe.stream.tls;
 import vibe.stream.taskpipe;
 import std.encoding : sanitize;
 
+import deimos.openssl.ssl;
+
 TLSContext createContext(TLSContextKind kind, string cert, string key, string trust, TLSPeerValidationMode mode)
 {
 	auto ctx = createTLSContext(kind);
@@ -262,42 +264,49 @@ void testVersion()
 	testConn(TLSVersion.ssl3, TLSVersion.tls1, false);
 	testConn(TLSVersion.ssl3, TLSVersion.tls1_1, false);
 	testConn(TLSVersion.ssl3, TLSVersion.tls1_2, false);
-	testConn(TLSVersion.ssl3, TLSVersion.tls1_3, false);
+	static if (OPENSSL_VERSION_AT_LEAST(1, 1, 0))
+		testConn(TLSVersion.ssl3, TLSVersion.tls1_3, false);
 
 	testConn(TLSVersion.tls1, TLSVersion.any, true);
 	testConn(TLSVersion.tls1, TLSVersion.ssl3, false);
 	testConn(TLSVersion.tls1, TLSVersion.tls1, true);
 	testConn(TLSVersion.tls1, TLSVersion.tls1_1, true);
 	testConn(TLSVersion.tls1, TLSVersion.tls1_2, true);
-	testConn(TLSVersion.tls1, TLSVersion.tls1_3, true);
+	static if (OPENSSL_VERSION_AT_LEAST(1, 1, 0))
+		testConn(TLSVersion.tls1, TLSVersion.tls1_3, true);
 
 	testConn(TLSVersion.tls1_1, TLSVersion.any, true);
 	testConn(TLSVersion.tls1_1, TLSVersion.ssl3, false);
 	testConn(TLSVersion.tls1_1, TLSVersion.tls1, true);
 	testConn(TLSVersion.tls1_1, TLSVersion.tls1_1, true);
 	testConn(TLSVersion.tls1_1, TLSVersion.tls1_2, true);
-	testConn(TLSVersion.tls1_1, TLSVersion.tls1_3, true);
+	static if (OPENSSL_VERSION_AT_LEAST(1, 1, 0))
+		testConn(TLSVersion.tls1_1, TLSVersion.tls1_3, true);
 
 	testConn(TLSVersion.tls1_2, TLSVersion.any, true);
 	testConn(TLSVersion.tls1_2, TLSVersion.ssl3, false);
 	testConn(TLSVersion.tls1_2, TLSVersion.tls1, true);
 	testConn(TLSVersion.tls1_2, TLSVersion.tls1_1, true);
 	testConn(TLSVersion.tls1_2, TLSVersion.tls1_2, true);
-	testConn(TLSVersion.tls1_2, TLSVersion.tls1_3, true);
+	static if (OPENSSL_VERSION_AT_LEAST(1, 1, 0))  
+		testConn(TLSVersion.tls1_2, TLSVersion.tls1_3, true);
 
+static if (OPENSSL_VERSION_AT_LEAST(1, 1, 0)) {  
 	testConn(TLSVersion.tls1_3, TLSVersion.any, true);
 	testConn(TLSVersion.tls1_3, TLSVersion.ssl3, false);
 	testConn(TLSVersion.tls1_3, TLSVersion.tls1, true);
 	testConn(TLSVersion.tls1_3, TLSVersion.tls1_1, true);
 	testConn(TLSVersion.tls1_3, TLSVersion.tls1_2, true);
 	testConn(TLSVersion.tls1_3, TLSVersion.tls1_3, true);
+}
 
 	testConn(TLSVersion.any, TLSVersion.any, true);
 	testConn(TLSVersion.any, TLSVersion.ssl3, false);
 	testConn(TLSVersion.any, TLSVersion.tls1, true);
 	testConn(TLSVersion.any, TLSVersion.tls1_1, true);
 	testConn(TLSVersion.any, TLSVersion.tls1_2, true);
-	testConn(TLSVersion.any, TLSVersion.tls1_3, true);
+	static if (OPENSSL_VERSION_AT_LEAST(1, 1, 0))
+		testConn(TLSVersion.any, TLSVersion.tls1_3, true);
 }
 
 void main()
