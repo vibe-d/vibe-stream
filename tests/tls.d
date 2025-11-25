@@ -272,7 +272,7 @@ void testVersion()
 	testConn(TLSVersion.tls1, TLSVersion.tls1, true);
 	testConn(TLSVersion.tls1, TLSVersion.tls1_1, true);
 	testConn(TLSVersion.tls1, TLSVersion.tls1_2, true);
-	static if (OPENSSL_VERSION_AT_LEAST(1, 1, 0))
+	static if (OPENSSL_VERSION_AT_LEAST(1, 1, 1))
 		testConn(TLSVersion.tls1, TLSVersion.tls1_3, true);
 
 	testConn(TLSVersion.tls1_1, TLSVersion.any, true);
@@ -280,7 +280,7 @@ void testVersion()
 	testConn(TLSVersion.tls1_1, TLSVersion.tls1, true);
 	testConn(TLSVersion.tls1_1, TLSVersion.tls1_1, true);
 	testConn(TLSVersion.tls1_1, TLSVersion.tls1_2, true);
-	static if (OPENSSL_VERSION_AT_LEAST(1, 1, 0))
+	static if (OPENSSL_VERSION_AT_LEAST(1, 1, 1))
 		testConn(TLSVersion.tls1_1, TLSVersion.tls1_3, true);
 
 	testConn(TLSVersion.tls1_2, TLSVersion.any, true);
@@ -288,10 +288,10 @@ void testVersion()
 	testConn(TLSVersion.tls1_2, TLSVersion.tls1, true);
 	testConn(TLSVersion.tls1_2, TLSVersion.tls1_1, true);
 	testConn(TLSVersion.tls1_2, TLSVersion.tls1_2, true);
-	static if (OPENSSL_VERSION_AT_LEAST(1, 1, 0))  
+	static if (OPENSSL_VERSION_AT_LEAST(1, 1, 1))  
 		testConn(TLSVersion.tls1_2, TLSVersion.tls1_3, true);
 
-static if (OPENSSL_VERSION_AT_LEAST(1, 1, 0)) {  
+static if (OPENSSL_VERSION_AT_LEAST(1, 1, 1)) {  
 	testConn(TLSVersion.tls1_3, TLSVersion.any, true);
 	testConn(TLSVersion.tls1_3, TLSVersion.ssl3, false);
 	testConn(TLSVersion.tls1_3, TLSVersion.tls1, true);
@@ -305,7 +305,7 @@ static if (OPENSSL_VERSION_AT_LEAST(1, 1, 0)) {
 	testConn(TLSVersion.any, TLSVersion.tls1, true);
 	testConn(TLSVersion.any, TLSVersion.tls1_1, true);
 	testConn(TLSVersion.any, TLSVersion.tls1_2, true);
-	static if (OPENSSL_VERSION_AT_LEAST(1, 1, 0))
+	static if (OPENSSL_VERSION_AT_LEAST(1, 1, 1))
 		testConn(TLSVersion.any, TLSVersion.tls1_3, true);
 }
 
