@@ -264,7 +264,7 @@ void testVersion()
 	testConn(TLSVersion.ssl3, TLSVersion.tls1, false);
 	testConn(TLSVersion.ssl3, TLSVersion.tls1_1, false);
 	testConn(TLSVersion.ssl3, TLSVersion.tls1_2, false);
-	static if (OPENSSL_VERSION_AT_LEAST(1, 1, 0))
+	static if (OPENSSL_VERSION_AT_LEAST(1, 1, 1))
 		testConn(TLSVersion.ssl3, TLSVersion.tls1_3, false);
 
 	testConn(TLSVersion.tls1, TLSVersion.any, true);
