@@ -288,10 +288,10 @@ void testVersion()
 	testConn(TLSVersion.tls1_2, TLSVersion.tls1, true);
 	testConn(TLSVersion.tls1_2, TLSVersion.tls1_1, true);
 	testConn(TLSVersion.tls1_2, TLSVersion.tls1_2, true);
-	static if (OPENSSL_VERSION_AT_LEAST(1, 1, 1))  
+	static if (OPENSSL_VERSION_AT_LEAST(1, 1, 1))
 		testConn(TLSVersion.tls1_2, TLSVersion.tls1_3, true);
 
-static if (OPENSSL_VERSION_AT_LEAST(1, 1, 1)) {  
+static if (OPENSSL_VERSION_AT_LEAST(1, 1, 1)) {
 	testConn(TLSVersion.tls1_3, TLSVersion.any, true);
 	testConn(TLSVersion.tls1_3, TLSVersion.ssl3, false);
 	testConn(TLSVersion.tls1_3, TLSVersion.tls1, true);
