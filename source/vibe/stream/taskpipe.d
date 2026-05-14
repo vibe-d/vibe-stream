@@ -50,6 +50,13 @@ final class TaskPipe : ConnectionStream {
 		m_pipe.waitForData(timeout);
 		return dataAvailableForRead;
 	}
+	WaitForDataStatus waitForDataEx(Duration timeout = Duration.max)
+	{
+		if (dataAvailableForRead) return WaitForDataStatus.dataAvailable;
+		m_pipe.waitForData(timeout);
+		if (dataAvailableForRead) return WaitForDataStatus.dataAvailable;
+		return m_pipe.open ? WaitForDataStatus.timeout : WaitForDataStatus.noMoreData;
+	}
 	const(ubyte)[] peek() { return m_pipe.peek; }
 	size_t read(scope ubyte[] dst, IOMode mode) { return m_pipe.read(dst, mode); }
 	alias read = ConnectionStream.read;

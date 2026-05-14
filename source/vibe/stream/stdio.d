@@ -71,6 +71,8 @@ class StdFileStream : ConnectionStream {
 
 	override bool waitForData(Duration timeout) { return m_readPipe.waitForData(timeout); }
 
+	override WaitForDataStatus waitForDataEx(Duration timeout = Duration.max) { return m_readPipe.waitForDataEx(timeout); }
+
 	override const(ubyte)[] peek()
 	{
 		enforceReadable();

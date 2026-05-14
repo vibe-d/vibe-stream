@@ -341,7 +341,6 @@ enum TLSVersion {
 	tls1_1, /// Accept TLSv1.1 or above
 	tls1_2, /// Accept TLSv1.2 or above
 	tls1_3, /// Accept only TLSv1.3
-	dtls1, /// Use DTLSv1.0
 
 	ssl23 = any /// Deprecated compatibility alias
 }

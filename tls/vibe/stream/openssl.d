@@ -739,7 +739,6 @@ final class OpenSSLContext : TLSContext {
 							minver = TLS1_3_VERSION;
 							break;
 						}
-					case TLSVersion.dtls1: method = DTLSv1_client_method(); minver = DTLS1_VERSION; maxver = DTLS1_VERSION; break;
 				}
 				break;
 			case TLSContextKind.server:
@@ -759,7 +758,6 @@ final class OpenSSLContext : TLSContext {
 							minver = TLS1_3_VERSION;
 							break;
 						}
-					case TLSVersion.dtls1: method = DTLSv1_server_method(); minver = DTLS1_VERSION; maxver = DTLS1_VERSION; break;
 				}
 				options |= SSL_OP_CIPHER_SERVER_PREFERENCE;
 				break;
