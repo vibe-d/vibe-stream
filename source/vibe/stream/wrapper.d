@@ -206,6 +206,24 @@ class ConnectionProxyStream : ConnectionStream {
 
 		return m_connection.waitForData(timeout);
 	}
+	
+	/** Three-state version of `waitForData` that distinguishes data,
+		EOF, and timeout.
+
+		Delegates to the underlying connection's `waitForDataEx` to get
+		an accurate status instead of trying to infer it from timing.
+	*/
+	WaitForDataStatus waitForDataEx(Duration timeout = Duration.max)
+	{
+		if (this.dataAvailableForRead)
+			return WaitForDataStatus.dataAvailable;
+
+		if (!m_connection)
+			return WaitForDataStatus.noMoreData;
+
+		return m_connection.waitForDataEx(timeout);
+	}
+
 
 	/// The stream that is wrapped by this one
 	@property inout(InterfaceProxy!Stream) underlying() inout { return m_underlying; }
