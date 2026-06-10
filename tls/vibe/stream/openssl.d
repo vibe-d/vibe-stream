@@ -521,7 +521,9 @@ final class OpenSSLStream : TLSStream {
 
 		() @trusted {
 			auto ret = SSL_shutdown(m_tls);
-			if (ret != 0) checkSSLRet(ret, "SSL_shutdown");
+			if (ret != 0)
+				try checkSSLRet(ret, "SSL_shutdown");
+				catch (Throwable e)	logInfo("SSL Error during OpenSSLStream.finalize: %s",e.msg);	//don't throw during finalize, it would cause a socket to be leaked.
 			SSL_free(m_tls);
 			ERR_clear_error();
 		} ();
