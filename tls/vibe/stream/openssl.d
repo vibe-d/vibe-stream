@@ -739,7 +739,12 @@ final class OpenSSLContext : TLSContext {
 							minver = TLS1_3_VERSION;
 							break;
 						}
-					case TLSVersion.dtls1: method = DTLSv1_client_method(); minver = DTLS1_VERSION; maxver = DTLS1_VERSION; break;
+					case TLSVersion.dtls1:
+						static if (OPENSSL_VERSION_BEFORE(4, 0, 0))	{
+							method = DTLSv1_client_method(); minver = DTLS1_VERSION; maxver = DTLS1_VERSION; 
+						} else
+							throw new Exception("OpenSSL "~OpenSSLVersion.text~" does not support dtls");
+						break;
 				}
 				break;
 			case TLSContextKind.server:
@@ -759,7 +764,12 @@ final class OpenSSLContext : TLSContext {
 							minver = TLS1_3_VERSION;
 							break;
 						}
-					case TLSVersion.dtls1: method = DTLSv1_server_method(); minver = DTLS1_VERSION; maxver = DTLS1_VERSION; break;
+					case TLSVersion.dtls1:
+						static if (OPENSSL_VERSION_BEFORE(4, 0, 0))	{
+							DTLSv1_server_method(); minver = DTLS1_VERSION; maxver = DTLS1_VERSION;
+						} else
+							throw new Exception("OpenSSL "~OpenSSLVersion.text~" does not support dtls");
+						break;
 				}
 				options |= SSL_OP_CIPHER_SERVER_PREFERENCE;
 				break;
