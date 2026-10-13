@@ -35,6 +35,17 @@ jobs:
               with:
                   compiler: ${{matrix.dc}}
 
+            - name: Install SOCKS5 proxy
+              if: runner.os == 'Linux'
+              run: sudo apt-get update && sudo apt-get install -y microsocks
+
+            # Protection against the accidental absence of a required
+            # executable file. Eliminates the risk of false-negative
+            # testing.
+            - name: Verify proxy servers installed
+              if: runner.os == 'Linux'
+              run: command -v microsocks
+
             - name: Run tests
               env:
                 DC: ${{matrix.dc}}

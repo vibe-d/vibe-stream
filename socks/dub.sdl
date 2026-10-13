@@ -1,0 +1,6 @@
+name "socks"
+description "SOCKS proxy stream implementation"
+
+dependency "vibe-stream" path=".."
+
+targetType "library"
