@@ -29,9 +29,36 @@ void testRoundtrip(NetworkAddress proxy, string host, ushort target_port,
 	enforce(response[] == request[], "SOCKS5 round-trip returned corrupted data.");
 }
 
+void testChainedRoundtrip(NetworkAddress proxy, string proxy_host, ushort proxy_port,
+	string host, ushort target_port)
+{
+	auto tcp = connectTCP(proxy, anyAddress, 10.seconds);
+	scope(exit) tcp.close();
+	tcp.readTimeout = 10.seconds;
+
+	// The first SOCKS5 layer tunnels to the proxy itself, so that the second
+	// layer's handshake reaches the proxy through the already established
+	// tunnel instead of the original TCP connection.
+	auto outer = createSocks5Stream(tcp, proxy_host, proxy_port);
+	scope(exit) outer.close();
+
+	// The second SOCKS5 layer runs through the first one and reaches the target.
+	auto inner = createSocks5Stream(outer, host, target_port);
+	scope(exit) inner.close();
+
+	ubyte[4] request = [1, 2, 3, 4];
+	ubyte[4] response;
+
+	inner.write(request[]);
+	inner.read(response[]);
+
+	enforce(response[] == request[], "Chained SOCKS5 round-trip returned corrupted data.");
+}
+
 void main()
 {
-	auto proxy = resolveHost(environment.get("SOCKS5_PROXY_HOST", "127.0.0.1"));
+	auto proxy_host = environment.get("SOCKS5_PROXY_HOST", "127.0.0.1");
+	auto proxy = resolveHost(proxy_host);
 	proxy.port = environment.get("SOCKS5_PROXY_PORT", "1080").to!ushort;
 
 	// listen on "::" so the target is reachable both via IPv4 and IPv6;
@@ -54,6 +81,9 @@ void main()
 
 	logInfo("Testing SOCKS5 connection using a domain name");
 	testRoundtrip(proxy, "localhost", echo_port);
+
+	logInfo("Testing chained SOCKS5 connections (SOCKS5 within SOCKS5)");
+	testChainedRoundtrip(proxy, proxy_host, proxy.port, "127.0.0.1", echo_port);
 
 	auto user = environment.get("SOCKS5_USER", null);
 	if (user.length) {
