@@ -84,6 +84,28 @@ void testStreamOnlyRoundtrip(NetworkAddress proxy, string host, ushort target_po
 	enforce(response[] == request[], "SOCKS5 round-trip through a stream-only underlying returned corrupted data.");
 }
 
+// Builds a nested chain of SOCKS5 layers, each tunnelling through the previous
+// one: every layer tunnels to the proxy itself, so the next layer's handshake
+// travels through the already established tunnels, and only the innermost layer
+// reaches the target.
+void testSocks5ChainEcho(NetworkAddress proxy, string proxy_host, ushort proxy_port,
+	string host, ushort target_port, size_t depth)
+{
+	ubyte[16] request = [0x42, 0x13, 0x37, 0xAB, 0xCD, 0xEF, 0x00, 0xFF, 0x7E, 0x81, 0x5A, 0xA5, 0x0F, 0xF0, 0x99, 0x66];
+	ubyte[16] response;
+
+	auto chain = proxy.connectTCP(anyAddress, 10.seconds)
+		.createSocks5Stream(proxy_host, proxy_port)
+		.createSocks5Stream(proxy_host, proxy_port)
+		.createSocks5Stream(proxy_host, proxy_port)
+		.createSocks5Stream(host, target_port);
+
+	chain.write(request[]);
+	chain.read(response[]);
+
+	enforce(response[] == request[], "Echo through the nested SOCKS5 chain returned corrupted data.");
+}
+
 void main()
 {
 	auto proxy_host = environment.get("SOCKS5_PROXY_HOST", "127.0.0.1");
@@ -116,6 +138,9 @@ void main()
 
 	logInfo("Testing SOCKS5 connection with a stream-only underlying");
 	testStreamOnlyRoundtrip(proxy, "127.0.0.1", echo_port);
+
+	logInfo("Testing a nested SOCKS5 chain echo (four layers)");
+	testSocks5ChainEcho(proxy, proxy_host, proxy.port, "127.0.0.1", echo_port, 4);
 
 	auto user = environment.get("SOCKS5_USER", null);
 	if (user.length) {
