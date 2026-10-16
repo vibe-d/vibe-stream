@@ -9,6 +9,7 @@ import core.time : seconds;
 import std;
 import vibe.core;
 import vibe.stream.socks;
+import vibe.stream.wrapper : createProxyStream;
 
 void testRoundtrip(NetworkAddress proxy, string host, ushort target_port,
 	string username = null, string password = null)
@@ -55,6 +56,28 @@ void testChainedRoundtrip(NetworkAddress proxy, string proxy_host, ushort proxy_
 	enforce(response[] == request[], "Chained SOCKS5 round-trip returned corrupted data.");
 }
 
+void testStreamOnlyRoundtrip(NetworkAddress proxy, string host, ushort target_port)
+{
+	auto tcp = connectTCP(proxy, anyAddress, 10.seconds);
+	scope(exit) tcp.close();
+	tcp.readTimeout = 10.seconds;
+
+	// A ProxyStream exposes only the Stream interface, without the connection
+	// members, so this covers wrapping a non-ConnectionStream underlying.
+	auto stream_only = createProxyStream(tcp);
+	auto conn = createSocks5Stream(stream_only, host, target_port);
+	static assert(!isConnectionStream!(typeof(conn)),
+		"Socks5Stream must not claim connection semantics for a stream-only underlying.");
+
+	ubyte[4] request = [1, 2, 3, 4];
+	ubyte[4] response;
+
+	conn.write(request[]);
+	conn.read(response[]);
+
+	enforce(response[] == request[], "SOCKS5 round-trip through a stream-only underlying returned corrupted data.");
+}
+
 void main()
 {
 	auto proxy_host = environment.get("SOCKS5_PROXY_HOST", "127.0.0.1");
@@ -84,6 +107,9 @@ void main()
 
 	logInfo("Testing chained SOCKS5 connections (SOCKS5 within SOCKS5)");
 	testChainedRoundtrip(proxy, proxy_host, proxy.port, "127.0.0.1", echo_port);
+
+	logInfo("Testing SOCKS5 connection with a stream-only underlying");
+	testStreamOnlyRoundtrip(proxy, "127.0.0.1", echo_port);
 
 	auto user = environment.get("SOCKS5_USER", null);
 	if (user.length) {
