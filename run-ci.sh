@@ -72,5 +72,7 @@ if [ ${RUN_TEST=1} -eq 1 ]; then
         (cd tests && dub --temp-build --single $ex $DUB_FLAGS)
     done
 
-    [ -n "$SOCKS5_PIDS" ] && kill $SOCKS5_PIDS 2>/dev/null
+    if [ -n "$SOCKS5_PIDS" ]; then
+        kill $SOCKS5_PIDS 2>/dev/null
+    fi
 fi
