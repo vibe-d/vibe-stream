@@ -21,13 +21,19 @@ void testRoundtrip(NetworkAddress proxy, string host, ushort target_port,
 	auto conn = createSocks5Stream(tcp, host, target_port, username, password);
 	scope(exit) conn.close();
 
+	enforce(conn.connected, "SOCKS5 stream should report a connected state after the handshake.");
+
 	ubyte[4] request = [1, 2, 3, 4];
 	ubyte[4] response;
 
 	conn.write(request[]);
+	enforce(conn.waitForData(10.seconds), "SOCKS5 stream should report data as available for read.");
 	conn.read(response[]);
 
 	enforce(response[] == request[], "SOCKS5 round-trip returned corrupted data.");
+
+	conn.close();
+	enforce(!conn.connected, "Closed SOCKS5 stream must not report a connected state.");
 }
 
 void testChainedRoundtrip(NetworkAddress proxy, string proxy_host, ushort proxy_port,
