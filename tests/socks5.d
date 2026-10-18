@@ -36,6 +36,30 @@ void testRoundtrip(NetworkAddress proxy, string host, ushort target_port,
 	enforce(!conn.connected, "Closed SOCKS5 stream must not report a connected state.");
 }
 
+void testEchoAddress(NetworkAddress proxy, NetworkAddress target)
+{
+	auto tcp = connectTCP(proxy, anyAddress, 10.seconds);
+	scope(exit) tcp.close();
+	tcp.readTimeout = 10.seconds;
+
+	auto conn = createSocks5Stream(tcp, target);
+	scope(exit) conn.close();
+
+	enforce(conn.connected, "SOCKS5 stream should report a connected state after the handshake.");
+
+	ubyte[4] request = [1, 2, 3, 4];
+	ubyte[4] response;
+
+	conn.write(request[]);
+	enforce(conn.waitForData(10.seconds), "SOCKS5 stream should report data as available for read.");
+	conn.read(response[]);
+
+	enforce(response[] == request[], "SOCKS5 echo returned corrupted data.");
+
+	conn.close();
+	enforce(!conn.connected, "Closed SOCKS5 stream must not report a connected state.");
+}
+
 void testChainedRoundtrip(NetworkAddress proxy, string proxy_host, ushort proxy_port,
 	string host, ushort target_port)
 {
@@ -132,6 +156,24 @@ void main()
 
 	logInfo("Testing SOCKS5 connection using a domain name");
 	testRoundtrip(proxy, "localhost", echo_port);
+
+	logInfo("Testing SOCKS5 connection using an IPv4 address");
+	auto target4 = resolveHost("127.0.0.1");
+	target4.port = echo_port;
+	testEchoAddress(proxy, target4);
+
+	logInfo("Testing SOCKS5 connection using an IPv6 address");
+	auto target6 = resolveHost("::1");
+	target6.port = echo_port;
+	testEchoAddress(proxy, target6);
+
+	logInfo("Testing that a non-IP destination address is rejected");
+	{
+		auto tcp = connectTCP(proxy, anyAddress, 10.seconds);
+		scope(exit) tcp.close();
+		assertThrown(createSocks5Stream(tcp, NetworkAddress.init),
+			"Expected a non-IP destination address to be rejected.");
+	}
 
 	logInfo("Testing chained SOCKS5 connections (SOCKS5 within SOCKS5)");
 	testChainedRoundtrip(proxy, proxy_host, proxy.port, "127.0.0.1", echo_port);

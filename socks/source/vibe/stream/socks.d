@@ -25,8 +25,11 @@ import core.time : Duration;
 	Creates a SOCKS5 tunnel within an existing stream.
 
 	The destination host name is passed to the proxy unchanged, so that the
-	proxy performs the DNS resolution of the destination on its side. If
-	`host` is an IP address literal, it is sent to the proxy as such.
+	proxy performs the DNS resolution of the destination on its side.
+
+	Instead of a host name with a separate port, the destination may also be
+	passed as a prepared `NetworkAddress`; it is then sent to the proxy in
+	binary IPv4 or IPv6 form, with the port taken from the address itself.
 
 	The handshake is performed immediately when the stream is created, so that
 	the returned stream can be used as a regular connection stream to the
@@ -38,18 +41,26 @@ import core.time : Duration;
 
 	Params:
 		underlying = The base stream which is used for the SOCKS5 tunnel
-		host = Host name or IP address of the destination
+		hostname = Host name of the destination
 		port = Port of the destination
 		username = Optional user name (enables RFC 1929 username/password authentication)
 		password = Optional password (enables RFC 1929 username/password authentication)
 	Returns:
 		A `Socks5Stream` that is tunneled through the proxy.
 */
-auto createSocks5Stream(Stream)(Stream underlying, string host, ushort port,
+auto createSocks5Stream(Stream)(Stream underlying, string hostname, ushort port,
 	string username = null, string password = null)
 	if (isStream!Stream)
 {
-	return Socks5Stream!Stream(underlying, host, port, username, password);
+	return Socks5Stream!Stream(underlying, hostname, port, username, password);
+}
+
+/// ditto
+auto createSocks5Stream(Stream)(Stream underlying, NetworkAddress dest,
+	string username = null, string password = null)
+	if (isStream!Stream)
+{
+	return Socks5Stream!Stream(underlying, dest, username, password);
 }
 
 
@@ -79,9 +90,18 @@ struct Socks5Stream(Underlying) {
 
 	private Underlying m_connection;
 
-	private this(Underlying underlying, string host, ushort port, string username, string password)
+	private this(Underlying underlying, string hostname, ushort port, string username, string password)
 	{
-		socks5Handshake(underlying, host, port, username, password);
+		socks5Handshake(underlying, NetworkAddress.init, hostname, port, username, password);
+		m_connection = underlying;
+	}
+
+	private this(Underlying underlying, NetworkAddress dest, string username, string password)
+	{
+		enforce(dest.family == AddressFamily.INET || dest.family == AddressFamily.INET6,
+			"SOCKS5 destination address must be an IPv4 or IPv6 address.");
+
+		socks5Handshake(underlying, dest, dest.toAddressString, dest.port, username, password);
 		m_connection = underlying;
 	}
 
@@ -110,11 +130,12 @@ struct Socks5Stream(Underlying) {
 mixin validateConnectionStream!(Socks5Stream!ConnectionStream);
 
 
-private void socks5Handshake(Stream)(Stream stream, string host, ushort port, string username, string password)
+private void socks5Handshake(Stream)(Stream stream, NetworkAddress dest,
+	string hostname, ushort port, string username, string password)
 	if (isStream!Stream)
 {
-	enforce(host.length > 0, "Destination host name must not be empty.");
-	enforce(host.length <= 255, "Destination host name is too long for SOCKS5.");
+	enforce(hostname.length > 0, "Destination host name must not be empty.");
+	enforce(hostname.length <= 255, "Destination host name is too long for SOCKS5.");
 
 	ubyte[] methods = username.length
 		? [Socks5Code.Version, ubyte(2), Socks5Code.AuthUserPass, Socks5Code.AuthNone]
@@ -149,11 +170,6 @@ private void socks5Handshake(Stream)(Stream stream, string host, ushort port, st
 			: format("SOCKS5 proxy requested unsupported authentication method 0x%02x.", method_reply[1]));
 	}
 
-	NetworkAddress dest;
-	// IP literal: send the address itself to the proxy
-	try dest = resolveHost(host, AddressFamily.UNSPEC, false);
-	catch (Exception) {} // not a valid address after all - send it as a domain name
-
 	ubyte[4 + 1 + 255 + 2] request;
 	size_t n = 0;
 	request[n++] = Socks5Code.Version;
@@ -173,9 +189,9 @@ private void socks5Handshake(Stream)(Stream stream, string host, ushort port, st
 		n += ip_len;
 	} else {
 		request[n++] = Socks5Code.AddrDomain;
-		request[n++] = cast(ubyte)host.length;
-		request[n .. n + host.length] = cast(const(ubyte)[])host;
-		n += host.length;
+		request[n++] = cast(ubyte)hostname.length;
+		request[n .. n + hostname.length] = cast(const(ubyte)[])hostname;
+		n += hostname.length;
 	}
 	request[n++] = cast(ubyte)(port >> 8);
 	request[n++] = cast(ubyte)(port & 0xFF);
@@ -185,7 +201,7 @@ private void socks5Handshake(Stream)(Stream stream, string host, ushort port, st
 	stream.read(reply[]);
 	enforce(reply[0] == Socks5Code.Version, "Invalid version in SOCKS5 reply.");
 	enforce(reply[1] == Socks5Code.RepSuccess, format("SOCKS5 proxy failed to connect to %s:%s: %s",
-		host, port, socks5ReplyDescription(reply[1])));
+		hostname, port, socks5ReplyDescription(reply[1])));
 	enforce(reply[2] == 0x00, "Invalid reserved byte in SOCKS5 reply.");
 
 	// consume the bound address, which we have no use for
