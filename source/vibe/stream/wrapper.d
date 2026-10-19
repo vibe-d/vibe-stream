@@ -175,10 +175,16 @@ class ConnectionProxyStream : ConnectionStream {
 		return m_connection.connected;
 	}
 
-	/** Closes the underlying connection and gives up ownership of the wrapped
-		streams.
+	/** Closes the underlying connection.
 
-		Note that the `.underlying` property will return a null stream after
+		The wrapped stream objects are left intact until this stream is
+		destroyed. Resetting them to `.init` here would destroy the embedded
+		connection and wipe the `.invalid` socket marker that
+		`TCPConnection.waitForDataEx` relies on to detect a read cancelled by
+		`close()` - a read still pending in another task would then trip
+		`assert(sock == m_socket)` and abort the process.
+
+		Note that `.underlying` returns the closed stream (not null) after
 		calling `close()`.
 	*/
 	void close()
@@ -190,11 +196,6 @@ class ConnectionProxyStream : ConnectionStream {
 
 		if (m_connection.connected) finalize();
 		m_connection.close();
-
-		m_connection = InterfaceProxy!ConnectionStream.init;
-		m_output = InterfaceProxy!OutputStream.init;
-		m_input = InterfaceProxy!InputStream.init;
-		m_underlying = InterfaceProxy!Stream.init;
 	}
 
 	bool waitForData(Duration timeout = 0.seconds)
