@@ -14,6 +14,7 @@ import std.exception;
 import core.time;
 import vibe.internal.interfaceproxy;
 import vibe.internal.freelistref : FreeListRef;
+import vibe.internal.traits: checkInterfaceConformance;
 
 
 ProxyStream createProxyStream(Stream)(Stream stream)
@@ -50,6 +51,36 @@ ConnectionProxyStream createConnectionProxyStream(InputStream, OutputStream, Con
 {
 	return new ConnectionProxyStream(interfaceProxy!(.InputStream)(input), interfaceProxy!(.OutputStream)(output), interfaceProxy!(.ConnectionStream)(connection_stream), true);
 }
+
+
+/**
+	Abstracts a stream or connection into `I` without allocating.
+
+	Structs are stored inline and fail to compile if they exceed
+	`InterfaceProxy.maxSize`; classes and interfaces always fit.
+*/
+InterfaceProxy!I toStreamProxy(I, S)(S value)
+	if (isStreamInterface!I && checkInterfaceConformance!(S, I) is null)
+{
+	return value.interfaceProxy!I;
+}
+
+
+/**
+	Abstracts a stream or connection into a plain `I` reference, enabling chains of
+	nested streams with a run-time length.
+
+	Classes and interfaces are returned as is; structs are GC allocated and thus
+	lose deterministic destruction.
+*/
+I toStreamInterface(I, S)(S value)
+	if (isStreamInterface!I && checkInterfaceConformance!(S, I) is null)
+{
+	return value.asInterface!I;
+}
+
+/// Matches the stream interfaces accepted by `toStreamProxy`/`toStreamInterface`.
+private enum isStreamInterface(I) = is(I == interface) && (is(I : InputStream) || is(I : OutputStream));
 
 
 /**
@@ -463,4 +494,70 @@ unittest {
 		assertThrown!Exception(r.flush());
 		assertThrown!Exception(r.flush());
 	} catch (Exception e) assert(false, "Descructor has thrown redundant exception");
+}
+
+unittest {
+	import vibe.stream.memory;
+
+	auto mem_out = createMemoryOutputStream();
+	OutputStream os = mem_out.toStreamInterface!OutputStream;
+	assert(os is mem_out);
+	os.write(cast(const(ubyte)[])"hello");
+	assert(mem_out.data == cast(const(ubyte)[])"hello");
+
+	size_t received = 0;
+	auto sink = TestOutputStream(&received);
+	OutputStream abstracted = sink.toStreamInterface!OutputStream;
+	abstracted.write(cast(const(ubyte)[])"world");
+	assert(received == 5);
+
+	received = 0;
+	auto proxy = sink.toStreamProxy!OutputStream;
+	proxy.write(cast(const(ubyte)[])"world!");
+	assert(received == 6);
+
+	static assert(!__traits(compiles, BigOutputStream.init.toStreamProxy!OutputStream));
+}
+
+version (unittest) {
+	private struct TestOutputStream {
+	@safe:
+		size_t* counter;
+
+		size_t write(scope const(ubyte)[] bytes, IOMode mode) @blocking
+		{
+			*counter += bytes.length;
+			return bytes.length;
+		}
+
+		void write(scope const(ubyte)[] bytes) @blocking
+		{
+			auto n = write(bytes, IOMode.all);
+			assert(n == bytes.length);
+		}
+
+		void write(scope const(char)[] bytes) @blocking
+		{
+			write(cast(const(ubyte)[])bytes);
+		}
+
+		void flush() @blocking {}
+		void finalize() @blocking {}
+	}
+	mixin validateOutputStream!TestOutputStream;
+
+	private struct BigOutputStream {
+	@safe:
+		ubyte[128] padding;
+
+		size_t write(scope const(ubyte)[] bytes, IOMode mode) @blocking
+		{
+			return bytes.length;
+		}
+		void write(scope const(ubyte)[] bytes) @blocking {}
+		void write(scope const(char)[] bytes) @blocking {}
+		void flush() @blocking {}
+		void finalize() @blocking {}
+	}
+	mixin validateOutputStream!BigOutputStream;
 }
