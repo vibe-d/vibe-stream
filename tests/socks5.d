@@ -8,7 +8,9 @@ module tests;
 import core.time: seconds;
 import std;
 import vibe.core;
+import vibe.core.sync: createTaskSemaphore;
 import vibe.stream.counting;
+import vibe.stream.semaphore;
 import vibe.stream.socks;
 import vibe.stream.wrapper: createConnectionProxyStream, createProxyStream, toStreamInterface;
 
@@ -94,6 +96,16 @@ private ConnectionStream countedLayer(ConnectionStream stream)
 	return input.createConnectionProxyStream(output, stream);
 }
 
+private ConnectionStream proxiedLayer(ConnectionStream stream)
+{
+	return stream.createProxyStream.createConnectionProxyStream(stream);
+}
+
+private ConnectionStream semaphoreLayer(ConnectionStream stream)
+{
+	return stream.createSemaphoreStream(createTaskSemaphore(1)).toStreamInterface!ConnectionStream;
+}
+
 void testDynamicChain(NetworkAddress proxy, string proxy_host, ushort proxy_port,
 	string host, ushort target_port, size_t intermediate_hops)
 {
@@ -109,7 +121,8 @@ void testDynamicChain(NetworkAddress proxy, string proxy_host, ushort proxy_port
 	foreach (_; 0 .. intermediate_hops)
 		current = current.countedLayer.createSocks5Stream(proxy_host, proxy_port).toStreamInterface!ConnectionStream;
 
-	auto conn = current.countedLayer.createSocks5Stream(host, target_port).toStreamInterface!ConnectionStream;
+	auto conn = current.proxiedLayer.semaphoreLayer
+		.createSocks5Stream(host, target_port).toStreamInterface!ConnectionStream;
 	scope(exit) conn.close();
 
 	conn.write(request[]);
