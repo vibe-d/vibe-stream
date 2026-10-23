@@ -9,10 +9,12 @@ import core.time: seconds;
 import std;
 import vibe.core;
 import vibe.core.sync: createTaskSemaphore;
+// TODO: replace with toConnectionStreamInterface once that alias is added to vibe.core.stream.
+import vibe.internal.interfaceproxy: asInterface;
 import vibe.stream.counting;
 import vibe.stream.semaphore;
 import vibe.stream.socks;
-import vibe.stream.wrapper: createConnectionProxyStream, createProxyStream, toStreamInterface;
+import vibe.stream.wrapper: createConnectionProxyStream, createProxyStream;
 
 void testRoundtrip(NetworkAddress proxy, string host, ushort target_port,
 	string username = null, string password = null)
@@ -103,7 +105,7 @@ private ConnectionStream proxiedLayer(ConnectionStream stream)
 
 private ConnectionStream semaphoreLayer(ConnectionStream stream)
 {
-	return stream.createSemaphoreStream(createTaskSemaphore(1)).toStreamInterface!ConnectionStream;
+	return asInterface!ConnectionStream(stream.createSemaphoreStream(createTaskSemaphore(1)));
 }
 
 void testDynamicChain(NetworkAddress proxy, string proxy_host, ushort proxy_port,
@@ -116,13 +118,13 @@ void testDynamicChain(NetworkAddress proxy, string proxy_host, ushort proxy_port
 	scope(exit) tcp.close();
 	tcp.readTimeout = 10.seconds;
 
-	ConnectionStream current = tcp.createSocks5Stream(proxy_host, proxy_port).toStreamInterface!ConnectionStream;
+	ConnectionStream current = asInterface!ConnectionStream(tcp.createSocks5Stream(proxy_host, proxy_port));
 
 	foreach (_; 0 .. intermediate_hops)
-		current = current.countedLayer.createSocks5Stream(proxy_host, proxy_port).toStreamInterface!ConnectionStream;
+		current = asInterface!ConnectionStream(current.countedLayer.createSocks5Stream(proxy_host, proxy_port));
 
-	auto conn = current.proxiedLayer.semaphoreLayer
-		.createSocks5Stream(host, target_port).toStreamInterface!ConnectionStream;
+	ConnectionStream conn = asInterface!ConnectionStream(current.proxiedLayer.semaphoreLayer
+		.createSocks5Stream(host, target_port));
 	scope(exit) conn.close();
 
 	conn.write(request[]);
