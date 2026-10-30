@@ -5,11 +5,16 @@
 +/
 module tests;
 
-import core.time : seconds;
+import core.time: seconds;
 import std;
 import vibe.core;
+import vibe.core.sync: createTaskSemaphore;
+// TODO: replace with toConnectionStreamInterface once that alias is added to vibe.core.stream.
+import vibe.internal.interfaceproxy: asInterface;
+import vibe.stream.counting;
+import vibe.stream.semaphore;
 import vibe.stream.socks;
-import vibe.stream.wrapper : createProxyStream;
+import vibe.stream.wrapper: createConnectionProxyStream, createProxyStream;
 
 void testRoundtrip(NetworkAddress proxy, string host, ushort target_port,
 	string username = null, string password = null)
@@ -84,6 +89,48 @@ void testChainedRoundtrip(NetworkAddress proxy, string proxy_host, ushort proxy_
 	inner.read(response[]);
 
 	enforce(response[] == request[], "Chained SOCKS5 round-trip returned corrupted data.");
+}
+
+private ConnectionStream countedLayer(ConnectionStream stream)
+{
+	auto input = stream.createLimitedInputStream(ulong.max);
+	auto output = stream.createCountingOutputStream;
+	return input.createConnectionProxyStream(output, stream);
+}
+
+private ConnectionStream proxiedLayer(ConnectionStream stream)
+{
+	return stream.createProxyStream.createConnectionProxyStream(stream);
+}
+
+private ConnectionStream semaphoreLayer(ConnectionStream stream)
+{
+	return asInterface!ConnectionStream(stream.createSemaphoreStream(createTaskSemaphore(1)));
+}
+
+void testDynamicChain(NetworkAddress proxy, string proxy_host, ushort proxy_port,
+	string host, ushort target_port, size_t intermediate_hops)
+{
+	ubyte[4] request = [1, 2, 3, 4];
+	ubyte[4] response;
+
+	auto tcp = proxy.connectTCP(anyAddress, 10.seconds);
+	scope(exit) tcp.close();
+	tcp.readTimeout = 10.seconds;
+
+	ConnectionStream current = asInterface!ConnectionStream(tcp.createSocks5Stream(proxy_host, proxy_port));
+
+	foreach (_; 0 .. intermediate_hops)
+		current = asInterface!ConnectionStream(current.countedLayer.createSocks5Stream(proxy_host, proxy_port));
+
+	ConnectionStream conn = asInterface!ConnectionStream(current.proxiedLayer.semaphoreLayer
+		.createSocks5Stream(host, target_port));
+	scope(exit) conn.close();
+
+	conn.write(request[]);
+	conn.read(response[]);
+
+	enforce(response[] == request[], "Dynamically built SOCKS5 chain returned corrupted data.");
 }
 
 void testStreamOnlyRoundtrip(NetworkAddress proxy, string host, ushort target_port)
@@ -177,6 +224,11 @@ void main()
 
 	logInfo("Testing chained SOCKS5 connections (SOCKS5 within SOCKS5)");
 	testChainedRoundtrip(proxy, proxy_host, proxy.port, "127.0.0.1", echo_port);
+
+	foreach (intermediate; 0 .. 3) {
+		logInfo(format("Testing dynamically built SOCKS5 chain with %s intermediate hop(s)", intermediate));
+		testDynamicChain(proxy, proxy_host, proxy.port, "127.0.0.1", echo_port, intermediate);
+	}
 
 	logInfo("Testing SOCKS5 connection with a stream-only underlying");
 	testStreamOnlyRoundtrip(proxy, "127.0.0.1", echo_port);
