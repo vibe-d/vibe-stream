@@ -83,6 +83,7 @@ struct SemaphoreStream(Stream, Semaphore, LockArgs...) {
 		@property bool connected() const { return m_stream.connected; }
 		void close() @blocking { auto l = lock(); m_stream.close(); }
 		bool waitForData(Duration timeout = Duration.max) @blocking { auto l = lock(); return m_stream.waitForData(timeout); }
+		WaitForDataStatus waitForDataEx(Duration timeout = Duration.max) @blocking { auto l = lock(); return m_stream.waitForDataEx(timeout); }
 	}
 
 	static if (isRandomAccessStream!Stream) {
