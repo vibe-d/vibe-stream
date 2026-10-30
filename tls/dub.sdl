@@ -6,8 +6,6 @@ dependency "openssl" version="~>3.4"
 dependency "openssl-static" version="~>1.0" optional=true
 subConfiguration "openssl-static" "none"
 
-lflags "-L/usr/local/opt/openssl@1.1/lib" "-L/usr/local/opt/openssl/lib" platform="osx"
-
 targetType "library"
 sourcePaths "."
 importPaths "."
